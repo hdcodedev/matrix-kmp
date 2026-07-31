@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 
 class IosFibiTest {
     @Test
-    fun `test 3rd element`() {
+    fun test_3rd_element() {
         assertEquals(7, generateFibi().take(3).last())
     }
 }

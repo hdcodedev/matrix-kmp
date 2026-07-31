@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 
 class JvmFibiTest {
     @Test
-    fun `test 3rd element`() {
+    fun test_3rd_element() {
         assertEquals(5, generateFibi().take(3).last())
     }
 }
