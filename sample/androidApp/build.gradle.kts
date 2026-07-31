@@ -4,10 +4,12 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinxSerialization)
+    alias(libs.plugins.composeScreenshot)
 }
 
 dependencies {
     implementation(projects.sample.shared)
+    implementation(projects.matrix)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.viewmodel.compose)
@@ -19,7 +21,15 @@ dependencies {
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.koin.compose.viewmodel)
     implementation(libs.coil.compose)
-    implementation(libs.coil.network.ktor)
+
+    screenshotTestImplementation(libs.screenshot.validation.api)
+    screenshotTestImplementation(libs.androidx.compose.ui.tooling.preview)
+    screenshotTestImplementation(libs.compose.ui.tooling)
+    screenshotTestImplementation(libs.compose.runtime)
+    screenshotTestImplementation(libs.compose.material3)
+    screenshotTestImplementation(libs.compose.foundation)
+    screenshotTestImplementation(libs.androidx.test.runner)
+    screenshotTestImplementation(libs.androidx.test.ext.junit)
 }
 
 android {
@@ -41,6 +51,7 @@ android {
                 .toInt()
         versionCode = 1
         versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
         resources {
@@ -56,10 +67,29 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    buildFeatures {
+        compose = true
+    }
+
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
+
+    testOptions {
+        screenshotTests {
+            imageDifferenceThreshold = 0.00025f
+        }
+    }
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_11
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    if (name.contains("ScreenshotTest")) {
+        maxParallelForks = 1
+        maxHeapSize = "3g"
     }
 }

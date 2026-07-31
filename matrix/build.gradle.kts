@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.composeCompiler)
     alias(libs.plugins.vanniktech.mavenPublish)
     `signing`
 }
@@ -14,7 +16,7 @@ version = matrixReleaseVersion ?: "1.0.0"
 
 kotlin {
     jvm()
-    androidLibrary {
+    android {
         namespace = "io.github.hdcodedev.matrix"
         compileSdk =
             libs.versions.android.compileSdk
@@ -41,11 +43,23 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // put your multiplatform dependencies here
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
         }
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.compose.mpp.ui.test)
+        }
+
+        androidMain.dependencies {
+            implementation(libs.androidx.compose.ui.tooling.preview)
+            implementation(libs.compose.ui.tooling)
+        }
+
+        jvmMain.dependencies {
+            implementation(compose.desktop.currentOs)
         }
     }
 }
