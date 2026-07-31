@@ -9,7 +9,7 @@ plugins {
 
 kotlin {
     androidLibrary {
-        namespace = "com.jetbrains.kmpapp.shared"
+        namespace = "io.github.hdcodedev.matrix.sample.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -33,24 +33,13 @@ kotlin {
     }
 
     sourceSets {
-        androidMain.dependencies {
-            implementation(libs.ktor.client.okhttp)
-        }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
-        }
         commonMain.dependencies {
-            implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.koin.core)
             api(libs.kmp.observable.viewmodel)
         }
 
-        // Required by KMM-ViewModel
-        all {
-            languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
-            languageSettings.optIn("kotlin.experimental.ExperimentalObjCName")
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }

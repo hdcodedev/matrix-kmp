@@ -16,7 +16,6 @@ kotlin = "2.3.10"
 kotlinx-serialization = "1.10.0"
 kmpObservableViewmodel = "1.0.2"
 kmpNativeCoroutines = "1.0.1"
-ktor = "3.4.1"
 material3 = "1.9.0"
 vanniktechMavenPublish = "0.36.0"
 
@@ -35,11 +34,6 @@ compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMul
 compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
-ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
-ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
-ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
-ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "androidx-ui-tooling" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "compose-navigation" }
 androidx-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-viewmodelCompose" }
