@@ -61,7 +61,6 @@ tasks.register("ciCompile") {
     dependsOn(":matrix:compileKotlinJvm")
     dependsOn(":matrix:compileKotlinIosArm64")
     dependsOn(":matrix:compileKotlinIosSimulatorArm64")
-    dependsOn(":matrix:compileKotlinLinuxX64")
     dependsOn(":matrix:compileAndroidMain")
     dependsOn(":sample:shared:compileKotlinIosArm64")
     dependsOn(":sample:shared:compileKotlinIosSimulatorArm64")
