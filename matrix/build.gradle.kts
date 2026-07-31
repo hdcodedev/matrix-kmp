@@ -4,17 +4,26 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.vanniktech.mavenPublish)
+    `signing`
 }
 
+val matrixReleaseVersion =
+    providers.gradleProperty("matrixReleaseVersion").orNull?.takeIf { it.isNotBlank() }
 group = "io.github.hdcodedev"
-version = "1.0.0"
+version = matrixReleaseVersion ?: "1.0.0"
 
 kotlin {
     jvm()
     androidLibrary {
         namespace = "io.github.hdcodedev.matrix"
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
-        minSdk = libs.versions.android.minSdk.get().toInt()
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
 
         withJava() // enable java compilation support
         withHostTestBuilder {}.configure {}
@@ -32,7 +41,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            //put your multiplatform dependencies here
+            // put your multiplatform dependencies here
         }
 
         commonTest.dependencies {
@@ -72,5 +81,15 @@ mavenPublishing {
             connection = "https://github.com/hdcodedev/matrix-kmp.git"
             developerConnection = "https://github.com/hdcodedev/matrix-kmp.git"
         }
+    }
+}
+
+signing {
+    val signingKeyId: String? = findProperty("signingKeyId") as String?
+    val signingPassword: String? = findProperty("signingPassword") as String?
+    val signingSecretKey: String? = findProperty("signingSecretKey") as String?
+
+    if (signingKeyId != null && signingPassword != null && signingSecretKey != null) {
+        useInMemoryPgpKeys(signingKeyId, signingSecretKey, signingPassword)
     }
 }

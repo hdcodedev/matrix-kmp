@@ -18,6 +18,8 @@ kmpObservableViewmodel = "1.0.2"
 kmpNativeCoroutines = "1.0.1"
 material3 = "1.9.0"
 vanniktechMavenPublish = "0.36.0"
+ktlint = "14.2.0"
+japicmp-gradle-plugin = "0.4.6"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -39,6 +41,7 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 androidx-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-viewmodelCompose" }
 kmp-observable-viewmodel = { module = "com.rickclephas.kmp:kmp-observableviewmodel-core", version.ref = "kmpObservableViewmodel" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
+japicmp-gradle-plugin = { module = "me.champeau.gradle.japicmp:me.champeau.gradle.japicmp.gradle.plugin", version.ref = "japicmp-gradle-plugin" }
 
 
 [plugins]
@@ -50,3 +53,4 @@ kmpNativeCoroutines = { id = "com.rickclephas.kmp.nativecoroutines", version.ref
 kotlinxSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechMavenPublish" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }

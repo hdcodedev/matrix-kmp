@@ -1,0 +1,33 @@
+version: 2
+
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    ignore:
+      - dependency-name: "gradle-wrapper"
+      - dependency-name: "com.android.application"
+      - dependency-name: "com.android.library"
+      - dependency-name: "com.android.kotlin.multiplatform.library"
+    groups:
+      gradle-wrapper:
+        patterns:
+          - "gradle-wrapper"
+      android-gradle-plugin:
+        patterns:
+          - "com.android.application"
+          - "com.android.library"
+          - "com.android.kotlin.multiplatform.library"
+      compose-and-jetbrains-androidx:
+        patterns:
+          - "org.jetbrains.compose*"
+          - "org.jetbrains.androidx*"
+      kotlin-tooling:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "com.google.devtools.ksp"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

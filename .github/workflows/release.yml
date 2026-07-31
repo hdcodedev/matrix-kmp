@@ -1,0 +1,178 @@
+# Coordinates every public release concern from one immutable matrix-kmp commit.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+    outputs:
+      release_version: ${{ steps.version.outputs.release_version }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: zulu
+          cache: gradle
+
+      - name: Validate version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ github.event.inputs.release_version }}"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid SemVer version: ${version}" >&2
+            exit 1
+          fi
+          echo "release_version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Record immutable release source
+        id: source
+        shell: bash
+        run: echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag does not already exist
+        shell: bash
+        run: |
+          if git rev-parse -q --verify "refs/tags/${{ steps.version.outputs.release_version }}" >/dev/null; then
+            echo "Release tag already exists: ${{ steps.version.outputs.release_version }}" >&2
+            exit 1
+          fi
+
+      - name: Audit API against previous release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          previous_release="$(git tag --list --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
+          if [[ -z "${previous_release}" ]]; then
+            echo "No previous SemVer release tag found; skipping release API audit."
+            echo "## Release API Audit" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Result: skipped (no previous SemVer release tag)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          set +e
+          set -o pipefail
+          ./gradlew apiCompatibilityCheck --no-daemon --no-configuration-cache --continue \
+            "-PapiCompatibilityBaselineRef=${previous_release}" \
+            2>&1 | tee release-api-compatibility.log
+          exit_code=${PIPESTATUS[0]}
+          set -e
+
+          {
+            echo "## Release API Audit"
+            echo "- Baseline: \`${previous_release}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${exit_code}" == "0" ]]; then
+            echo "- Result: compatible" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if grep -Eq "Detected binary changes\.|Detected source incompatible changes\." release-api-compatibility.log; then
+            echo "- Result: acknowledged API changes detected; see the job log" >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Release contains API changes relative to ${previous_release}."
+            exit 0
+          fi
+
+          echo "- Result: audit failed" >> "$GITHUB_STEP_SUMMARY"
+          echo "API compatibility audit failed for a non-compatibility reason." >&2
+          exit "${exit_code}"
+
+  publish-maven:
+    name: Publish Maven Release
+    needs: [prepare-release]
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare-release.outputs.source_sha }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: zulu
+          cache: gradle
+
+      - name: Prepare publishing
+        uses: ./.github/actions/prepare-matrix-publishing
+        with:
+          maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          signing-key-id: ${{ secrets.SIGNING_KEY_ID }}
+          signing-password: ${{ secrets.SIGNING_PASSWORD }}
+          signing-in-memory-key: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+
+      - name: Publish to Maven Central
+        run: ./gradlew :matrix:publish -PmatrixReleaseVersion=${{ needs.prepare-release.outputs.release_version }} --no-daemon --no-configuration-cache
+
+  announce-release:
+    name: Announce Release
+    needs: [prepare-release, publish-maven]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v9
+        env:
+          RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
+          SOURCE_SHA: ${{ needs.prepare-release.outputs.source_sha }}
+        with:
+          script: |
+            const version = process.env.RELEASE_VERSION;
+            const sourceSha = process.env.SOURCE_SHA;
+            const message = [
+              '🎉 **Release Published Successfully!**',
+              '',
+              `Version: \`${version}\``,
+              '',
+              'Dependency:',
+              '```kotlin',
+              `implementation("io.github.hdcodedev:matrix:${version}")`,
+              '```',
+              '',
+              `📦 [Maven Central](https://central.sonatype.com/artifact/io.github.hdcodedev/matrix/${version})`,
+              `🔗 [GitHub Release](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${version})`,
+            ].join('\n');
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: version,
+              target_commitish: sourceSha,
+              name: `matrix-kmp ${version}`,
+              body: message,
+              generate_release_notes: true,
+              draft: false,
+              prerelease: false,
+            });
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `${message}\n\n🔗 [GitHub Release](${release.data.html_url})`,
+            });
