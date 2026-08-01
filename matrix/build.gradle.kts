@@ -3,18 +3,27 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.composeCompiler)
     alias(libs.plugins.vanniktech.mavenPublish)
+    `signing`
 }
 
 group = "io.github.hdcodedev"
-version = "1.0.0"
 
 kotlin {
     jvm()
-    androidLibrary {
+    android {
         namespace = "io.github.hdcodedev.matrix"
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
-        minSdk = libs.versions.android.minSdk.get().toInt()
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+        androidResources.enable = true
 
         withJava() // enable java compilation support
         withHostTestBuilder {}.configure {}
@@ -28,15 +37,26 @@ kotlin {
     }
     iosArm64()
     iosSimulatorArm64()
-    linuxX64()
 
     sourceSets {
         commonMain.dependencies {
-            //put your multiplatform dependencies here
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
         }
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.compose.mpp.ui.test)
+        }
+
+        androidMain.dependencies {
+            implementation(libs.androidx.compose.ui.tooling.preview)
+            implementation(libs.compose.ui.tooling)
+        }
+
+        jvmMain.dependencies {
+            implementation(compose.desktop.currentOs)
         }
     }
 }
@@ -72,5 +92,15 @@ mavenPublishing {
             connection = "https://github.com/hdcodedev/matrix-kmp.git"
             developerConnection = "https://github.com/hdcodedev/matrix-kmp.git"
         }
+    }
+}
+
+signing {
+    val signingKeyId: String? = findProperty("signingInMemoryKeyId") as String?
+    val signingPassword: String? = findProperty("signingInMemoryKeyPassword") as String?
+    val signingSecretKey: String? = findProperty("signingInMemoryKey") as String?
+
+    if (signingKeyId != null && signingPassword != null && signingSecretKey != null) {
+        useInMemoryPgpKeys(signingKeyId, signingSecretKey, signingPassword)
     }
 }

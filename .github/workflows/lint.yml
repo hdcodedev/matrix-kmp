@@ -1,0 +1,46 @@
+# Reusable Kotlin lint check for pull request orchestration.
+name: Lint
+
+on:
+  workflow_call:
+    inputs:
+      should-run:
+        description: Whether the pull request contains code or build changes.
+        required: true
+        type: boolean
+      source-sha:
+        description: Immutable merge revision being checked.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source-sha }}
+      - name: Set up JDK 17
+        if: ${{ inputs.should-run }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: 'zulu'
+          cache: gradle
+      - name: Lint
+        if: ${{ inputs.should-run }}
+        run: ./gradlew ktlintCheck buildSrcKtlintCheck
+      - name: Test repository scripts
+        if: ${{ inputs.should-run }}
+        run: |
+          bash -n scripts/*.sh .github/scripts/*.sh
+          bash scripts/ci-has-code-changes.sh --self-test
+          bash .github/scripts/collect-release-notes.sh --self-test
+      - name: Skip lint for docs-only changes
+        if: ${{ !inputs.should-run }}
+        run: echo "No code/build changes detected. Skipping lint."

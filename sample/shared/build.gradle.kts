@@ -10,8 +10,14 @@ plugins {
 kotlin {
     androidLibrary {
         namespace = "io.github.hdcodedev.matrix.sample.shared"
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
-        minSdk = libs.versions.android.minSdk.get().toInt()
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
 
         compilerOptions {
             jvmTarget = JvmTarget.JVM_11
@@ -24,7 +30,7 @@ kotlin {
 
     listOf(
         iosArm64(),
-        iosSimulatorArm64()
+        iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "Shared"
