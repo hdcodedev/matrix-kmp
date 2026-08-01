@@ -19,6 +19,7 @@ permissions:
 jobs:
   lint:
     name: Lint
+    if: ${{ inputs.should-run }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -26,21 +27,15 @@ jobs:
           fetch-depth: 0
           ref: ${{ inputs.source-sha }}
       - name: Set up JDK 17
-        if: ${{ inputs.should-run }}
         uses: actions/setup-java@v5.6.0
         with:
           java-version: 17
           distribution: 'zulu'
           cache: gradle
       - name: Lint
-        if: ${{ inputs.should-run }}
         run: ./gradlew ktlintCheck buildSrcKtlintCheck
       - name: Test repository scripts
-        if: ${{ inputs.should-run }}
         run: |
           bash -n scripts/*.sh .github/scripts/*.sh
           bash scripts/ci-has-code-changes.sh --self-test
           bash .github/scripts/collect-release-notes.sh --self-test
-      - name: Skip lint for docs-only changes
-        if: ${{ !inputs.should-run }}
-        run: echo "No code/build changes detected. Skipping lint."

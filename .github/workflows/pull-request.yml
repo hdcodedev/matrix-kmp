@@ -45,23 +45,22 @@ jobs:
   assemble:
     name: PR Assemble
     needs: prepare
-    if: ${{ needs.prepare.outputs.should_run == 'true' }}
     uses: ./.github/workflows/assemble.yml
     with:
+      should-run: ${{ needs.prepare.outputs.should_run == 'true' }}
       source-sha: ${{ needs.prepare.outputs.source_sha }}
 
   compile:
     name: PR Compile
     needs: prepare
-    if: ${{ needs.prepare.outputs.should_run == 'true' }}
     uses: ./.github/workflows/compile.yml
     with:
+      should-run: ${{ needs.prepare.outputs.should_run == 'true' }}
       source-sha: ${{ needs.prepare.outputs.source_sha }}
 
   lint:
     name: PR Lint
     needs: prepare
-    if: ${{ needs.prepare.outputs.should_run == 'true' }}
     uses: ./.github/workflows/lint.yml
     with:
       should-run: ${{ needs.prepare.outputs.should_run == 'true' }}
@@ -70,7 +69,6 @@ jobs:
   test:
     name: PR Test
     needs: prepare
-    if: ${{ needs.prepare.outputs.should_run == 'true' }}
     uses: ./.github/workflows/test.yml
     with:
       should-run: ${{ needs.prepare.outputs.should_run == 'true' }}
@@ -79,8 +77,8 @@ jobs:
   api-compatibility:
     name: PR Compare Public API Against Release
     needs: prepare
-    if: ${{ needs.prepare.outputs.should_run == 'true' }}
     uses: ./.github/workflows/api-compatibility.yml
     with:
       has-breaking-label: ${{ needs.prepare.outputs.has_breaking_label == 'true' }}
+      should-run: ${{ needs.prepare.outputs.should_run == 'true' }}
       source-sha: ${{ needs.prepare.outputs.source_sha }}
