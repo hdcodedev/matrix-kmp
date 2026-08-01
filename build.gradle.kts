@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.composeScreenshot) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinxSerialization) apply false
-    alias(libs.plugins.kmpNativeCoroutines) apply false
     alias(libs.plugins.ktlint)
     alias(libs.plugins.axionRelease)
     id("matrix.api-compatibility")
