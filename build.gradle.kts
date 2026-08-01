@@ -18,7 +18,7 @@ scmVersion {
         prefix.set("")
         initialVersion { _, _ -> "1.0.0" }
     }
-    versionIncrementer("incrementMinor")
+    versionIncrementer("incrementPatch")
 }
 
 val matrixReleaseVersion = providers.gradleProperty("matrixReleaseVersion").orNull?.takeIf { it.isNotBlank() }
