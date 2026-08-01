@@ -15,15 +15,33 @@ fi
 
 REPO="hdcodedev/matrix-kmp"
 
-# Extract key ID from the .asc file (portable: uses gpg colon format)
-KEY_ID=$(gpg --show-keys --with-colons --keyid-format=long "$ASC_FILE" 2>/dev/null | awk -F: '/^pub:/{print $5; exit}')
+# Gradle's PgpKeyId accepts only the short 8-character key ID (or 0x plus
+# those 8 characters), not a long key ID or a full fingerprint. Use GnuPG's
+# dry-run import mode because secret-key input may expose a `sec` record rather
+# than a `pub` record through `--show-keys` on macOS.
+KEY_ID=$(gpg --batch --no-options --with-colons --keyid-format=long \
+    --import-options show-only --import "$ASC_FILE" 2>/dev/null | \
+    awk -F: '
+        ($1 == "sec" || $1 == "pub") && $5 != "" {
+            print substr($5, length($5) - 7)
+            found = 1
+            exit
+        }
+        $1 == "fpr" && $10 != "" && fingerprint == "" {
+            fingerprint = $10
+        }
+        END {
+            if (!found && fingerprint != "") {
+                print substr(fingerprint, length(fingerprint) - 7)
+            }
+        }
+    ')
 
-if [[ -z "$KEY_ID" ]]; then
-    KEY_ID=$(gpg --show-keys --with-colons "$ASC_FILE" 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')
-fi
+# Bash 3.2 (the macOS system Bash) does not support ${value^^}.
+KEY_ID="$(printf '%s' "$KEY_ID" | tr '[:lower:]' '[:upper:]')"
 
-if [[ -z "$KEY_ID" ]]; then
-    echo "Error: Could not extract key ID from $ASC_FILE"
+if [[ ! "$KEY_ID" =~ ^[0-9A-F]{8}$ ]]; then
+    echo "Error: Could not extract a valid 8-character key ID from $ASC_FILE" >&2
     exit 1
 fi
 
@@ -33,18 +51,15 @@ echo "Key ID: $KEY_ID"
 read -rsp "Enter PGP key password: " KEY_PASSWORD
 echo
 
-# Read key content
-KEY_CONTENT=$(cat "$ASC_FILE")
-
 # Set GitHub secrets
 echo "Setting SIGNING_IN_MEMORY_KEY..."
-echo "$KEY_CONTENT" | gh secret set SIGNING_IN_MEMORY_KEY --repo "$REPO"
+gh secret set SIGNING_IN_MEMORY_KEY --repo "$REPO" < "$ASC_FILE"
 
 echo "Setting SIGNING_KEY_ID..."
-echo "$KEY_ID" | gh secret set SIGNING_KEY_ID --repo "$REPO"
+printf '%s\n' "$KEY_ID" | gh secret set SIGNING_KEY_ID --repo "$REPO"
 
 echo "Setting SIGNING_PASSWORD..."
-echo "$KEY_PASSWORD" | gh secret set SIGNING_PASSWORD --repo "$REPO"
+printf '%s\n' "$KEY_PASSWORD" | gh secret set SIGNING_PASSWORD --repo "$REPO"
 
 echo ""
 echo "All signing secrets set successfully for $REPO."
