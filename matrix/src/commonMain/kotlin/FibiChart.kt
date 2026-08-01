@@ -26,7 +26,8 @@ fun FibiChart(
 ) {
     if (numbers.isEmpty()) return
 
-    val maxValue = numbers.max()
+    val maxValue = numbers.maxOrNull() ?: return
+    if (maxValue <= 0) return
 
     Box(
         modifier =

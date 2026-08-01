@@ -35,6 +35,12 @@ jobs:
       - name: Lint
         if: ${{ inputs.should-run }}
         run: ./gradlew ktlintCheck buildSrcKtlintCheck
+      - name: Test repository scripts
+        if: ${{ inputs.should-run }}
+        run: |
+          bash -n scripts/*.sh .github/scripts/*.sh
+          bash scripts/ci-has-code-changes.sh --self-test
+          bash .github/scripts/collect-release-notes.sh --self-test
       - name: Skip lint for docs-only changes
         if: ${{ !inputs.should-run }}
         run: echo "No code/build changes detected. Skipping lint."

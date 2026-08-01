@@ -9,10 +9,7 @@ plugins {
     `signing`
 }
 
-val matrixReleaseVersion =
-    providers.gradleProperty("matrixReleaseVersion").orNull?.takeIf { it.isNotBlank() }
 group = "io.github.hdcodedev"
-version = matrixReleaseVersion ?: "1.0.0"
 
 kotlin {
     jvm()
@@ -26,6 +23,7 @@ kotlin {
             libs.versions.android.minSdk
                 .get()
                 .toInt()
+        androidResources.enable = true
 
         withJava() // enable java compilation support
         withHostTestBuilder {}.configure {}
@@ -98,9 +96,9 @@ mavenPublishing {
 }
 
 signing {
-    val signingKeyId: String? = findProperty("signingKeyId") as String?
-    val signingPassword: String? = findProperty("signingPassword") as String?
-    val signingSecretKey: String? = findProperty("signingSecretKey") as String?
+    val signingKeyId: String? = findProperty("signingInMemoryKeyId") as String?
+    val signingPassword: String? = findProperty("signingInMemoryKeyPassword") as String?
+    val signingSecretKey: String? = findProperty("signingInMemoryKey") as String?
 
     if (signingKeyId != null && signingPassword != null && signingSecretKey != null) {
         useInMemoryPgpKeys(signingKeyId, signingSecretKey, signingPassword)

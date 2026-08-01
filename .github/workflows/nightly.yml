@@ -1,0 +1,24 @@
+# Workflow: run the snapshot release workflow every night.
+# This keeps snapshot publishing moving without a manual trigger.
+#
+# It is the nightly scheduler for release automation.
+name: Nightly Workflows
+
+on:
+  schedule:
+    # Runs every day at 00:00 UTC.
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot-release:
+    name: Run Snapshot Release
+    uses: ./.github/workflows/snapshot-release.yml
+    secrets:
+      MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+      SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+      SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+      SIGNING_IN_MEMORY_KEY: ${{ secrets.SIGNING_IN_MEMORY_KEY }}

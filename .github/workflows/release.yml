@@ -3,15 +3,9 @@ name: Release
 
 on:
   workflow_dispatch:
-    inputs:
-      release_version:
-        description: 'Release version (e.g. 1.0.0)'
-        required: true
-        type: string
 
 permissions:
   contents: write
-  id-token: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -37,22 +31,35 @@ jobs:
           distribution: zulu
           cache: gradle
 
-      - name: Validate version
+      - name: Resolve release version from Axion
         id: version
         shell: bash
         run: |
           set -euo pipefail
-          version="${{ github.event.inputs.release_version }}"
-          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid SemVer version: ${version}" >&2
+          version="$(./gradlew -q currentVersion | awk 'NF {v=$NF} END {gsub(/\r/, "", v); print v}')"
+          if [[ -z "${version:-}" ]]; then
+            echo "Failed to resolve version from Axion currentVersion task." >&2
             exit 1
           fi
-          echo "release_version=${version}" >> "$GITHUB_OUTPUT"
+          if [[ "${version}" != *"-SNAPSHOT" ]]; then
+            echo "Expected a -SNAPSHOT current version (current=${version})." >&2
+            exit 1
+          fi
+          release_version="${version%-SNAPSHOT}"
+          if [[ ! "${release_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Resolved version is not SemVer-compatible: ${release_version}" >&2
+            exit 1
+          fi
+          echo "release_version=${release_version}" >> "$GITHUB_OUTPUT"
 
       - name: Record immutable release source
         id: source
         shell: bash
         run: echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release readiness with Axion
+        shell: bash
+        run: ./gradlew verifyRelease -PmatrixReleaseVersion="${{ steps.version.outputs.release_version }}" --no-daemon --stacktrace
 
       - name: Verify tag does not already exist
         shell: bash
@@ -103,9 +110,21 @@ jobs:
           echo "API compatibility audit failed for a non-compatibility reason." >&2
           exit "${exit_code}"
 
+  approve-release:
+    name: Approve Release
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    environment: Release Approval
+    steps:
+      - name: Record approval
+        run: |
+          echo "## Release Approval" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Version: \`${{ needs.prepare-release.outputs.release_version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Source: \`${{ needs.prepare-release.outputs.source_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+
   publish-maven:
     name: Publish Maven Release
-    needs: [prepare-release]
+    needs: [prepare-release, approve-release]
     runs-on: ubuntu-latest
     environment: Production
     steps:
@@ -130,42 +149,81 @@ jobs:
           signing-password: ${{ secrets.SIGNING_PASSWORD }}
           signing-in-memory-key: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
 
+      - name: Create release tag locally with Axion
+        run: ./gradlew createRelease -PmatrixReleaseVersion="${{ needs.prepare-release.outputs.release_version }}" -Prelease.disableRemoteCheck --no-daemon --stacktrace
+
       - name: Publish to Maven Central
         run: ./gradlew :matrix:publish -PmatrixReleaseVersion=${{ needs.prepare-release.outputs.release_version }} --no-daemon --no-configuration-cache
+
+      - name: Push release tag with Axion
+        run: ./gradlew pushRelease -Prelease.pushTagsOnly --no-daemon --stacktrace
 
   announce-release:
     name: Announce Release
     needs: [prepare-release, publish-maven]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare-release.outputs.source_sha }}
+
+      - name: Collect release notes
+        id: release-notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="$(bash .github/scripts/collect-release-notes.sh "${{ needs.prepare-release.outputs.release_version }}")"
+          if [[ -n "${notes}" ]]; then
+            {
+              echo "release_notes<<EOF"
+              printf '%s\n' "${notes}"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/github-script@v9
         env:
           RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
           SOURCE_SHA: ${{ needs.prepare-release.outputs.source_sha }}
+          RELEASE_NOTES: ${{ steps.release-notes.outputs.release-notes }}
         with:
           script: |
             const version = process.env.RELEASE_VERSION;
             const sourceSha = process.env.SOURCE_SHA;
+            const releaseNotes = process.env.RELEASE_NOTES || '';
             const message = [
               '🎉 **Release Published Successfully!**',
               '',
               `Version: \`${version}\``,
+              '',
+            ];
+            if (releaseNotes.trim()) {
+              message.push('## Release Notes');
+              message.push('');
+              message.push(releaseNotes.trim());
+              message.push('');
+            }
+            message.push(
+              '## Breaking Changes',
+              '',
+              'See the [API compatibility report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) if any breaking changes were introduced.',
               '',
               'Dependency:',
               '```kotlin',
               `implementation("io.github.hdcodedev:matrix:${version}")`,
               '```',
               '',
-              `📦 [Maven Central](https://central.sonatype.com/artifact/io.github.hdcodedev/matrix/${version})`,
+              `📦 [Maven Central](https://central.sonatype.com/artifact/io.github/hdcodedev/matrix/${version})`,
               `🔗 [GitHub Release](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${version})`,
-            ].join('\n');
+            );
             const release = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: version,
               target_commitish: sourceSha,
               name: `matrix-kmp ${version}`,
-              body: message,
+              body: message.join('\n'),
               generate_release_notes: true,
               draft: false,
               prerelease: false,
@@ -174,5 +232,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: `${message}\n\n🔗 [GitHub Release](${release.data.html_url})`,
+              body: `${message.join('\n')}\n\n🔗 [GitHub Release](${release.data.html_url})`,
             });

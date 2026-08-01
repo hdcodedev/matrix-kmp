@@ -9,10 +9,30 @@ plugins {
     alias(libs.plugins.kotlinxSerialization) apply false
     alias(libs.plugins.kmpNativeCoroutines) apply false
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.axionRelease)
     id("matrix.api-compatibility")
 }
 
+scmVersion {
+    tag {
+        prefix.set("")
+        initialVersion { _, _ -> "1.0.0" }
+    }
+    versionIncrementer("incrementMinor")
+}
+
+val matrixReleaseVersion = providers.gradleProperty("matrixReleaseVersion").orNull?.takeIf { it.isNotBlank() }
+val isCompositeIncludedBuild = gradle.parent != null
+version =
+    when {
+        matrixReleaseVersion != null -> matrixReleaseVersion
+        isCompositeIncludedBuild -> "dev-local"
+        else -> scmVersion.version
+    }
+
 subprojects {
+    version = rootProject.version
+
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
 
     extensions.configure<org.jlleitschuh.gradle.ktlint.KtlintExtension>("ktlint") {

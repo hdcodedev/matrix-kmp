@@ -83,12 +83,45 @@ jobs:
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
     environment: Snapshot
     outputs:
+      snapshot_version: ${{ steps.version.outputs.snapshot_version }}
+      release_notes_version: ${{ steps.version.outputs.release_notes_version }}
+      is_snapshot: ${{ steps.version.outputs.is_snapshot }}
       source_sha: ${{ steps.source.outputs.source_sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: zulu
+          cache: gradle
+
+      - name: Resolve snapshot version from Axion
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          SNAPSHOT_VERSION=$(./gradlew -q currentVersion \
+            | awk 'NF {v=$NF} END {gsub(/\r/, "", v); print v}')
+          if [ -z "${SNAPSHOT_VERSION:-}" ]; then
+            echo "Failed to resolve version from Axion currentVersion task." >&2
+            exit 1
+          fi
+
+          if [[ "$SNAPSHOT_VERSION" != *"-SNAPSHOT"* ]]; then
+            echo "⏭️  Skipping snapshot release - version is not a SNAPSHOT: ${SNAPSHOT_VERSION}"
+            echo "is_snapshot=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_snapshot=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "snapshot_version=${SNAPSHOT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_notes_version=${SNAPSHOT_VERSION%-SNAPSHOT}" >> "$GITHUB_OUTPUT"
+          echo "Config matrixVersion: ${SNAPSHOT_VERSION}"
 
       - name: Record immutable snapshot source
         id: source
@@ -97,7 +130,8 @@ jobs:
 
   publish-maven:
     name: Publish Snapshot to Maven Central
-    needs: [prepare-snapshot]
+    needs: prepare-snapshot
+    if: ${{ needs.prepare-snapshot.outputs.is_snapshot == 'true' }}
     runs-on: ubuntu-latest
     environment: Snapshot
     steps:
@@ -123,21 +157,23 @@ jobs:
           signing-in-memory-key: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
 
       - name: Publish snapshot
-        run: ./gradlew :matrix:publish -PmatrixReleaseVersion=1.0.0-SNAPSHOT --no-daemon
+        run: ./gradlew :matrix:publish -PmatrixReleaseVersion=${{ needs.prepare-snapshot.outputs.snapshot_version }} --no-daemon
 
   announce-snapshot:
     name: Announce Snapshot Release
     needs: [prepare-snapshot, publish-maven]
+    if: ${{ needs.prepare-snapshot.outputs.is_snapshot == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Comment on commit
         uses: actions/github-script@v9
         with:
           script: |
+            const version = '${{ needs.prepare-snapshot.outputs.snapshot_version }}';
             const message = [
               '🚀 **Snapshot Release Published**',
               '',
-              'Version: `1.0.0-SNAPSHOT`',
+              `Version: \`${version}\``,
               '',
               'The snapshot is now available on Maven Central Snapshots repository.',
               '',
@@ -145,7 +181,7 @@ jobs:
               '',
               'Dependency:',
               '```kotlin',
-              'implementation("io.github.hdcodedev:matrix:1.0.0-SNAPSHOT")',
+              `implementation("io.github.hdcodedev:matrix:${version}")`,
               '```',
             ].join('\n');
 
