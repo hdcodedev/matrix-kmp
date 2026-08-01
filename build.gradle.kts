@@ -1,3 +1,4 @@
+import org.gradle.api.Task
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.DisableCacheInKotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeCacheApi
@@ -35,6 +36,29 @@ version =
         else -> scmVersion.version
     }
 
+fun Task.isGradleSignTask(): Boolean {
+    var taskClass: Class<*>? = javaClass
+    while (taskClass != null) {
+        if (taskClass.name == "org.gradle.plugins.signing.Sign") return true
+        taskClass = taskClass.superclass
+    }
+    return false
+}
+
+val verifySigningKey =
+    tasks.register<Exec>("verifySigningKey") {
+        group = "verification"
+        description = "Verifies the in-memory PGP signing key before signing."
+        commandLine(
+            "bash",
+            layout.projectDirectory
+                .file(".github/scripts/verify-signing-key.sh")
+                .asFile
+                .absolutePath,
+            "--required",
+        )
+    }
+
 @OptIn(KotlinNativeCacheApi::class)
 subprojects {
     version = rootProject.version
@@ -44,6 +68,14 @@ subprojects {
     extensions.configure<org.jlleitschuh.gradle.ktlint.KtlintExtension>("ktlint") {
         android.set(true)
         ignoreFailures.set(false)
+    }
+
+    plugins.withId("signing") {
+        tasks.configureEach {
+            if (isGradleSignTask()) {
+                dependsOn(verifySigningKey)
+            }
+        }
     }
 
     // Hosted macOS runners can provide Kotlin/Native caches built against a
