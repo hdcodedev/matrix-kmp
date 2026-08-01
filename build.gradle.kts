@@ -1,3 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.DisableCacheInKotlinVersion
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeCacheApi
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable
+
 plugins {
     alias(libs.plugins.vanniktech.mavenPublish) apply false
     alias(libs.plugins.androidApplication) apply false
@@ -29,6 +35,7 @@ version =
         else -> scmVersion.version
     }
 
+@OptIn(KotlinNativeCacheApi::class)
 subprojects {
     version = rootProject.version
 
@@ -37,6 +44,26 @@ subprojects {
     extensions.configure<org.jlleitschuh.gradle.ktlint.KtlintExtension>("ktlint") {
         android.set(true)
         ignoreFailures.set(false)
+    }
+
+    // Hosted macOS runners can provide Kotlin/Native caches built against a
+    // newer simulator SDK than the deployment target used by these tests.
+    plugins.withId("org.jetbrains.kotlin.multiplatform") {
+        if (path != ":matrix") return@withId
+
+        extensions.configure<KotlinMultiplatformExtension>("kotlin") {
+            targets.withType<KotlinNativeTarget>().configureEach {
+                if (name != "iosSimulatorArm64") return@configureEach
+
+                binaries.withType<TestExecutable>().configureEach {
+                    disableNativeCache(
+                        version = DisableCacheInKotlinVersion.`2_4_10`,
+                        reason =
+                            "Hosted macOS caches can target a newer simulator SDK than the test deployment target.",
+                    )
+                }
+            }
+        }
     }
 }
 
