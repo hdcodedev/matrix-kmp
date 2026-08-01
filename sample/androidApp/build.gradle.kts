@@ -73,7 +73,6 @@ android {
     }
 
     experimentalProperties["android.experimental.enableScreenshotTest"] = true
-
 }
 
 kotlin {
