@@ -62,10 +62,6 @@ kotlin {
 }
 
 mavenPublishing {
-    publishToMavenCentral()
-
-    signAllPublications()
-
     coordinates(group.toString(), "matrix", version.toString())
 
     pom {
