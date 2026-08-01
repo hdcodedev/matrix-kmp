@@ -7,7 +7,7 @@ plugins {
 }
 
 kotlin {
-    androidLibrary {
+    android {
         namespace = "io.github.hdcodedev.matrix.sample.shared"
         compileSdk =
             libs.versions.android.compileSdk
@@ -40,7 +40,6 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.koin.core)
-            api(libs.kmp.observable.viewmodel)
         }
 
         commonTest.dependencies {
