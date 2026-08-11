@@ -6,12 +6,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import io.github.hdcodedev.matrix.FibiChart
+import androidx.compose.ui.unit.dp
+import io.github.hdcodedev.matrix.MatrixPulse
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,7 +28,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    FibiChartContent()
+                    MatrixPulseContent()
                 }
             }
         }
@@ -34,6 +36,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun FibiChartContent() {
-    FibiChart(numbers = listOf(1, 2, 3, 5, 8, 13, 21, 34))
+private fun MatrixPulseContent() {
+    MatrixPulse(
+        modifier = Modifier.size(96.dp),
+    )
 }
